@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<form method="get" class="filters">
+  <label>
+    Color
+    <input type="color" name="color" value="{{ current_color }}">
+  </label>
+  <label>
+    Material
+    <select name="material">
+      <option value="">Any</option>
+      {% for m in materials %}
+      <option value="{{ m }}" {% if m == current_material %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    Weave
+    <select name="weave">
+      <option value="">Any</option>
+      {% for w in weaves %}
+      <option value="{{ w }}" {% if w == current_weave %}selected{% endif %}>{{ w }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button type="submit">Match</button>
+</form>
+
+{% if fabrics %}
+<div class="grid">
+  {% for f in fabrics %}
+  <a class="card" href="{{ f.url }}" target="_blank" rel="noopener noreferrer">
+    <div class="swatch" style="background:{{ f.hex }}"></div>
+    <div class="meta">
+      <div class="name">{{ f.name }}</div>
+      <div class="store">{{ f.store_name }}</div>
+      <div class="hex">
+        {{ f.hex }}
+        {% if f.delta_e is not none and f.delta_e is defined %}
+          &middot; &Delta;E {{ '%.1f' % f.delta_e }}
+        {% endif %}
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">
+  <p>No fabrics in the database yet.</p>
+  <p>Add a store scraper in <code>scraper/stores/</code> (copy <code>template_store.py</code>),
+     then run <code>python -m scraper.run &lt;store_slug&gt; 20</code>.</p>
+</div>
+{% endif %}
+{% endblock %}
