@@ -6,6 +6,10 @@
     <input type="color" name="color" value="{{ current_color }}">
   </label>
   <label>
+    Max &Delta;E
+    <input type="number" name="tolerance" value="{{ '%g' % current_tolerance }}" min="0" max="200" step="5">
+  </label>
+  <label>
     Material
     <select name="material">
       <option value="">Any</option>

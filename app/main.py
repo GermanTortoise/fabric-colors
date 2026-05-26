@@ -24,11 +24,18 @@ def hex_to_lab(hex_str: str) -> tuple[float, float, float]:
     return float(lab[0]), float(lab[1]), float(lab[2])
 
 
+DEFAULT_TOLERANCE = 65.0
+
+
 @app.route("/")
 def index():
     material = request.args.get("material", "").strip()
     weave = request.args.get("weave", "").strip()
     target = request.args.get("color", "").strip()
+    try:
+        tolerance = float(request.args.get("tolerance", DEFAULT_TOLERANCE))
+    except ValueError:
+        tolerance = DEFAULT_TOLERANCE
 
     where = ["hex IS NOT NULL"]
     params: list = []
@@ -72,7 +79,8 @@ def index():
                     + (r["lab_a"] - ta) ** 2
                     + (r["lab_b"] - tb) ** 2
                 )
-            rows.sort(key=lambda r: (r["delta_e"] is None, r["delta_e"]))
+            rows = [r for r in rows if r.get("delta_e") is not None and r["delta_e"] <= tolerance]
+            rows.sort(key=lambda r: r["delta_e"])
         except ValueError:
             pass
 
@@ -84,6 +92,7 @@ def index():
         current_material=material,
         current_weave=weave,
         current_color=target or "#888888",
+        current_tolerance=tolerance,
     )
 
 
