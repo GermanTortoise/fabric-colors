@@ -1,11 +1,26 @@
+import hashlib
 import random
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Iterable
 
 import requests
 from bs4 import BeautifulSoup
+
+IMAGE_CACHE_DIR = Path(__file__).resolve().parent.parent / "data" / "cache" / "images"
+
+
+def image_cache_path(url: str) -> Path:
+    """Where the bytes for `url` are cached. Key includes the query string so a
+    Shopify CDN `?v=` bump produces a new entry instead of serving stale bytes.
+    """
+    h = hashlib.sha256(url.encode("utf-8")).hexdigest()[:16]
+    path_part = url.split("?", 1)[0]
+    leaf = path_part.rsplit("/", 1)[-1]
+    ext = leaf.rsplit(".", 1)[-1].lower() if "." in leaf else "jpg"
+    return IMAGE_CACHE_DIR / f"{h}.{ext}"
 
 
 @dataclass
@@ -74,8 +89,14 @@ class BaseScraper(ABC):
         return self._request(url).json()
 
     def fetch_image(self, url: str) -> bytes:
+        path = image_cache_path(url)
+        if path.exists():
+            return path.read_bytes()
         time.sleep(self.image_delay)
-        return self._request(url).content
+        data = self._request(url).content
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        return data
 
     def soup(self, html: str) -> BeautifulSoup:
         return BeautifulSoup(html, "html.parser")
