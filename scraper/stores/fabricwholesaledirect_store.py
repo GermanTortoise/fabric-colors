@@ -10,6 +10,7 @@ color but differ on size are deduped.
 """
 import re
 from typing import Iterable
+from urllib.parse import parse_qs, urlparse
 
 from scraper.base import BaseScraper, FabricRecord
 
@@ -129,23 +130,84 @@ class FabricWholesaleDirectScraper(BaseScraper):
                     return float(m.group(1))
         return None
 
+    # Two filename styles coexist on FWD's CDN:
+    #   newer: "..._Red_a2_<uuid>.jpg"  (underscores around the a<digit> code)
+    #   older: "...-OffWhitea2.jpg"     (color smushed against the code, no uuid)
+    # Match both: optional leading underscore, then a<digit>, then optional _<uuid>.
+    _IMG_TAIL_RE = re.compile(
+        r"(_?)a\d+(_[a-f0-9-]+)?\.(?:jpe?g|png|webp)$",
+        re.IGNORECASE,
+    )
+
     @staticmethod
     def _drape_image(p: dict, featured_url: str | None, code: str = "a1") -> str | None:
         if not featured_url:
             return None
-        # featured_url looks like ".../SV582877..._Red_a2_<uuid>.jpg?v=..."
-        # Strip query string and find the prefix before "_a<digit>_".
         path = featured_url.split("?", 1)[0]
-        m = re.search(r"^(.+)_a\d+_", path)
+        m = FabricWholesaleDirectScraper._IMG_TAIL_RE.search(path)
         if not m:
             return None
-        prefix = m.group(1)
-        target = f"_{code}_"
+        sep = m.group(1)
+        prefix = path[: m.start()]
+        target_re = re.compile(
+            re.escape(prefix + sep + code) + r"(_[a-f0-9-]+)?\.",
+            re.IGNORECASE,
+        )
         for img in p.get("images") or []:
             src = (img.get("src") or "").split("?", 1)[0]
-            if src.startswith(prefix) and target in src.lower():
+            if target_re.match(src):
                 return img.get("src")
         return None
+
+    def resolve_listing_image(self, listing_url: str) -> tuple[str, dict]:
+        """Given a public listing URL, return (A1 drape image URL, info dict).
+
+        Info dict carries the product title, picked variant color, and the URL
+        we fetched — useful for the debug viz to label what was sampled.
+        Raises ValueError on URLs that aren't a FWD product page.
+        """
+        parsed = urlparse(listing_url)
+        if "fabricwholesaledirect.com" not in (parsed.netloc or ""):
+            raise ValueError("not a fabricwholesaledirect.com URL")
+        m = re.match(r"^/products/([^/]+)/?$", parsed.path)
+        if not m:
+            raise ValueError("URL is not a /products/<handle> path")
+        handle = m.group(1)
+        variant_q = parse_qs(parsed.query).get("variant", [None])[0]
+        variant_id = int(variant_q) if variant_q and variant_q.isdigit() else None
+
+        data = self.fetch_json(f"{self.base_url}/products/{handle}.json")
+        product = data.get("product") or {}
+        variants = product.get("variants") or []
+        if not variants:
+            raise ValueError("product has no variants")
+
+        variant = None
+        if variant_id is not None:
+            variant = next((v for v in variants if v.get("id") == variant_id), None)
+        if variant is None:
+            variant = variants[0]
+
+        color_pos = self._color_option_position(product.get("options") or [])
+        color = variant.get(f"option{color_pos}") if color_pos else None
+        # The single-product .json endpoint omits `featured_image` (the catalog
+        # /products.json denormalizes it in); reconstruct it from image_id.
+        image_id = variant.get("image_id")
+        featured = None
+        for img in product.get("images") or []:
+            if img.get("id") == image_id:
+                featured = img.get("src")
+                break
+        image_url = self._drape_image(product, featured) or featured
+        if not image_url:
+            raise ValueError("no image found for variant")
+        return image_url, {
+            "title": product.get("title"),
+            "color": color,
+            "variant_id": variant.get("id"),
+            "featured_image": featured,
+            "drape_image": image_url,
+        }
 
     @staticmethod
     def _weave_from_product(p: dict) -> str | None:

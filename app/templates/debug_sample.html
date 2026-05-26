@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Sample debug · Fabric Colors{% endblock %}
+
+{% block content %}
+<h2>Debug: sampled area</h2>
+<p>Paste a Fabric Wholesale Direct product URL (with or without <code>?variant=...</code>)
+to see which pixels the color extractor sampled.</p>
+
+<form method="get" style="margin-bottom: 1.5rem;">
+  <input
+    type="text"
+    name="url"
+    value="{{ url or '' }}"
+    placeholder="https://fabricwholesaledirect.com/products/..."
+    style="width: 100%; max-width: 700px; padding: 6px;">
+  <button type="submit">Visualize</button>
+</form>
+
+{% if error %}
+  <p style="color: #b00020;"><strong>Error:</strong> {{ error }}</p>
+{% endif %}
+
+{% if result %}
+  <h3>{{ info.title }} – {{ info.color }}</h3>
+  <p style="font-size: 0.9em; color: #666;">
+    Variant {{ info.variant_id }} ·
+    <a href="{{ info.drape_image }}" target="_blank">A1 drape image</a>
+    (featured was <a href="{{ info.featured_image }}" target="_blank">A2 swatch</a>)
+  </p>
+
+  <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-start;">
+    <div>
+      <h4>Original (red box = sampled region)</h4>
+      <img src="{{ original_b64 }}" style="max-width: 500px; border: 1px solid #ccc;">
+      <p style="font-size: 0.85em; color: #666;">
+        Image: {{ original_size[0] }}×{{ original_size[1] }} px<br>
+        Crop box: ({{ crop_box[0] }}, {{ crop_box[1] }}) → ({{ crop_box[2] }}, {{ crop_box[3] }})
+      </p>
+    </div>
+
+    <div>
+      <h4>Pixels k-means saw (red = excluded by mask)</h4>
+      <img src="{{ sample_b64 }}" style="width: 300px; image-rendering: pixelated; border: 1px solid #ccc;">
+      <p style="font-size: 0.85em; color: #666;">
+        Thumbnail: {{ sample_size[0] }}×{{ sample_size[1] }} px<br>
+        Brightness mask applied: {{ "yes" if mask_applied else "no — pale fabric, kept all pixels" }}<br>
+        {% if mask_applied %}Pixels excluded: {{ pct_masked }}%{% endif %}
+      </p>
+    </div>
+
+    <div>
+      <h4>Extracted color</h4>
+      <div style="background: {{ result.hex }}; width: 200px; height: 100px; border: 1px solid #999;"></div>
+      <p style="font-size: 0.9em;">
+        <strong>HEX:</strong> {{ result.hex }}<br>
+        <strong>RGB:</strong> {{ result.rgb[0] }}, {{ result.rgb[1] }}, {{ result.rgb[2] }}<br>
+        <strong>LAB:</strong>
+        L={{ "%.1f"|format(result.lab[0]) }},
+        a={{ "%.1f"|format(result.lab[1]) }},
+        b={{ "%.1f"|format(result.lab[2]) }}
+      </p>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

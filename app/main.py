@@ -4,13 +4,17 @@ Run from the project root:
     python -m app.main
 Then open http://localhost:5000
 """
+import base64
+import io
 import math
 
 import numpy as np
 from flask import Flask, render_template, request
+from PIL import Image, ImageDraw
 
-from scraper.color import rgb_to_lab
+from scraper.color import extract_with_debug, rgb_to_lab
 from scraper.db import connect
+from scraper.stores.fabricwholesaledirect_store import FabricWholesaleDirectScraper
 
 app = Flask(__name__)
 
@@ -94,6 +98,60 @@ def index():
         current_color=target or "#888888",
         current_tolerance=tolerance,
     )
+
+
+def _png_data_uri(img: Image.Image) -> str:
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+@app.route("/debug/sample")
+def debug_sample():
+    listing_url = request.args.get("url", "").strip()
+    ctx: dict = {"url": listing_url}
+    if not listing_url:
+        return render_template("debug_sample.html", **ctx)
+
+    try:
+        scraper = FabricWholesaleDirectScraper()
+        image_url, info = scraper.resolve_listing_image(listing_url)
+        img_bytes = scraper.fetch_image(image_url)
+        debug = extract_with_debug(img_bytes)
+    except Exception as exc:
+        ctx["error"] = f"{exc.__class__.__name__}: {exc}"
+        return render_template("debug_sample.html", **ctx)
+
+    # Original with crop box outlined.
+    annotated = debug.original.copy()
+    draw = ImageDraw.Draw(annotated)
+    # Use a stroke width that scales with image size so it stays visible.
+    stroke = max(2, min(annotated.size) // 200)
+    draw.rectangle(debug.crop_box, outline="#ff0000", width=stroke)
+
+    # Cropped thumbnail with masked-out pixels tinted red, so you can see what
+    # k-means ignored. When mask wasn't applied, show the unmodified thumbnail.
+    sample = debug.cropped_thumbnail.convert("RGBA")
+    if debug.mask_applied:
+        overlay = np.zeros((*sample.size[::-1], 4), dtype=np.uint8)
+        rejected = (~debug.mask).reshape(sample.size[::-1])
+        overlay[rejected] = (255, 0, 0, 140)
+        sample = Image.alpha_composite(sample, Image.fromarray(overlay, mode="RGBA"))
+
+    pct_masked = round(100 * (1 - debug.mask.mean()), 1) if debug.mask_applied else 0.0
+
+    ctx.update({
+        "info": info,
+        "result": debug.result,
+        "mask_applied": debug.mask_applied,
+        "pct_masked": pct_masked,
+        "crop_box": debug.crop_box,
+        "original_size": debug.original.size,
+        "sample_size": debug.cropped_thumbnail.size,
+        "original_b64": _png_data_uri(annotated),
+        "sample_b64": _png_data_uri(sample),
+    })
+    return render_template("debug_sample.html", **ctx)
 
 
 if __name__ == "__main__":
