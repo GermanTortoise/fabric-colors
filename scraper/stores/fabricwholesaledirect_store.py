@@ -9,7 +9,6 @@ One FabricRecord is emitted per (product, unique color). Variants that share a
 color but differ on size are deduped.
 """
 import re
-import time
 from typing import Iterable
 
 from scraper.base import BaseScraper, FabricRecord
@@ -51,10 +50,8 @@ class FabricWholesaleDirectScraper(BaseScraper):
         page = 1
         while True:
             url = f"{self.base_url}/products.json?limit=250&page={page}"
-            time.sleep(self.crawl_delay)
-            resp = self.session.get(url, timeout=30)
-            resp.raise_for_status()
-            products = resp.json().get("products", [])
+            data = self.fetch_json(url)
+            products = data.get("products", [])
             if not products:
                 break
             print(f"  page {page}: {len(products)} products")

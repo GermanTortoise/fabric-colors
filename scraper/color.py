@@ -9,7 +9,6 @@ import io
 from dataclasses import dataclass
 
 import numpy as np
-import requests
 from PIL import Image
 from sklearn.cluster import KMeans
 
@@ -86,13 +85,3 @@ def extract_dominant_color(
         lab=(float(lab[0]), float(lab[1]), float(lab[2])),
         rgb=(r, g, b),
     )
-
-
-def download_image(url: str, timeout: int = 30) -> bytes:
-    resp = requests.get(
-        url,
-        timeout=timeout,
-        headers={"User-Agent": "fabric-colors-bot/0.1"},
-    )
-    resp.raise_for_status()
-    return resp.content

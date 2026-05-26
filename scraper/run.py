@@ -88,7 +88,7 @@ def run(slug: str, limit: int | None = None) -> None:
             result = None
             if record.image_url:
                 try:
-                    img_bytes = color.download_image(record.image_url)
+                    img_bytes = scraper.fetch_image(record.image_url)
                     result = color.extract_dominant_color(img_bytes)
                 except Exception as exc:
                     print(f"  color extraction failed for {record.url}: {exc}")
