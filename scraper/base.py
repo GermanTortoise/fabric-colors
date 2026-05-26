@@ -1,5 +1,6 @@
 import hashlib
 import random
+import re
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -25,16 +26,21 @@ def image_cache_path(url: str) -> Path:
 
 @dataclass
 class FabricRecord:
-    store_product_id: str
-    name: str
-    url: str
+    brand: str
+    collection: str
+    color_code: str
+    color_name: str
+    manufacturer_url: str
     image_url: str | None = None
-    raw_color_name: str | None = None
     material: str | None = None
     weave: str | None = None
     weight_gsm: float | None = None
     width_inches: float | None = None
     content: str | None = None
+
+    @property
+    def name(self) -> str:
+        return f"{self.brand} {self.collection} – {self.color_name}"
 
 
 class BaseScraper(ABC):
@@ -105,10 +111,14 @@ class BaseScraper(ABC):
     def iter_records(self) -> Iterable[FabricRecord]:
         """Yield FabricRecord instances. The scraper handles discovery + parsing."""
 
+    # Whole-word matching, not substring — otherwise color names like
+    # "Peridot" (contains "dot") or "Blueprint" (contains "print") get
+    # falsely rejected as patterned.
+    _PATTERN_RE = re.compile(
+        r"\b(print|floral|stripe|plaid|check|pattern|polka|dot|geometric|"
+        r"paisley|tartan|houndstooth)\b",
+        re.IGNORECASE,
+    )
+
     def is_solid(self, record: FabricRecord) -> bool:
-        name = record.name.lower()
-        patterned = (
-            "print", "floral", "stripe", "plaid", "check", "pattern",
-            "polka", "dot", "geometric", "paisley", "tartan", "houndstooth",
-        )
-        return not any(p in name for p in patterned)
+        return not self._PATTERN_RE.search(record.name)

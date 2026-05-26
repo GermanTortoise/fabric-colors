@@ -1,5 +1,11 @@
 """Fabric Wholesale Direct (fabricwholesaledirect.com).
 
+FWD is its own house brand — the store IS the manufacturer, so each product
+page doubles as the canonical manufacturer URL under the project's
+manufacturer-canonical model. brand = "Fabric Wholesale Direct" for all
+records; collection = product title (e.g. "Stretch Velvet"); color_code =
+synthetic "{product_id}-{color_slug}" since FWD doesn't publish stable codes.
+
 Shopify storefront. robots.txt explicitly allows public catalog crawling and
 points agents at /agents.md and a UCP/MCP endpoint. We use /products.json
 (paginated) instead of HTML scraping because Shopify returns full structured
@@ -44,6 +50,7 @@ def _slugify(s: str) -> str:
 class FabricWholesaleDirectScraper(BaseScraper):
     slug = "fabricwholesaledirect"
     name = "Fabric Wholesale Direct"
+    brand = "Fabric Wholesale Direct"
     base_url = "https://fabricwholesaledirect.com"
     crawl_delay = 2.5
 
@@ -96,11 +103,12 @@ class FabricWholesaleDirectScraper(BaseScraper):
             seen.add(color)
 
             yield FabricRecord(
-                store_product_id=f"{p['id']}-{_slugify(color)}",
-                name=f"{title} – {color}",
-                url=f"{product_url}?variant={v['id']}",
+                brand=self.brand,
+                collection=title,
+                color_code=f"{p['id']}-{_slugify(color)}",
+                color_name=color,
+                manufacturer_url=f"{product_url}?variant={v['id']}",
                 image_url=image_url,
-                raw_color_name=color,
                 material=material,
                 content=material,
                 weave=weave,

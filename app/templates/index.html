@@ -33,11 +33,11 @@
 {% if fabrics %}
 <div class="grid">
   {% for f in fabrics %}
-  <a class="card" href="{{ f.url }}" target="_blank" rel="noopener noreferrer">
+  <a class="card" href="{{ f.manufacturer_url }}" target="_blank" rel="noopener noreferrer">
     <div class="swatch" style="background:{{ f.hex }}"></div>
     <div class="meta">
-      <div class="name">{{ f.name }}</div>
-      <div class="store">{{ f.store_name }}</div>
+      <div class="name">{{ f.color_name }}</div>
+      <div class="store">{{ f.brand }} &middot; {{ f.collection }}</div>
       <div class="hex">
         {{ f.hex }}
         {% if f.delta_e is not none and f.delta_e is defined %}
@@ -51,8 +51,8 @@
 {% else %}
 <div class="empty">
   <p>No fabrics in the database yet.</p>
-  <p>Add a store scraper in <code>scraper/stores/</code> (copy <code>template_store.py</code>),
-     then run <code>python -m scraper.run &lt;store_slug&gt; 20</code>.</p>
+  <p>Add a manufacturer scraper in <code>scraper/manufacturers/</code>,
+     then run <code>python -m scraper.run &lt;manufacturer_slug&gt; 20</code>.</p>
 </div>
 {% endif %}
 {% endblock %}

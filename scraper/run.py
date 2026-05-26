@@ -1,10 +1,10 @@
 """Scrape runner.
 
 Usage:
-    python -m scraper.run <store_slug> [limit]
+    python -m scraper.run <manufacturer_slug> [limit]
 
 Example:
-    python -m scraper.run fabricwholesaledirect 20
+    python -m scraper.run robertkaufman 20
 """
 import importlib
 import sys
@@ -14,36 +14,26 @@ from scraper.base import BaseScraper, FabricRecord
 
 
 def get_scraper(slug: str) -> BaseScraper:
-    module = importlib.import_module(f"scraper.stores.{slug}_store")
+    module = importlib.import_module(f"scraper.manufacturers.{slug}")
     for attr in dir(module):
         obj = getattr(module, attr)
         if isinstance(obj, type) and issubclass(obj, BaseScraper) and obj is not BaseScraper:
             return obj()
-    raise ValueError(f"No BaseScraper subclass found in scraper.stores.{slug}_store")
+    raise ValueError(f"No BaseScraper subclass found in scraper.manufacturers.{slug}")
 
 
-def upsert_store(scraper: BaseScraper) -> int:
-    with db.connect() as conn:
-        cur = conn.execute(
-            "INSERT INTO stores (slug, name, base_url) VALUES (?, ?, ?) "
-            "ON CONFLICT(slug) DO UPDATE SET name=excluded.name, base_url=excluded.base_url "
-            "RETURNING id",
-            (scraper.slug, scraper.name, scraper.base_url),
-        )
-        return cur.fetchone()[0]
-
-
-def save_fabric(store_id: int, record: FabricRecord, result: color.ColorResult | None) -> None:
+def save_fabric(record: FabricRecord, result: color.ColorResult | None) -> None:
     with db.connect() as conn:
         conn.execute(
             """
             INSERT INTO fabrics (
-                store_id, store_product_id, name, url, image_url,
-                hex, lab_l, lab_a, lab_b,
-                material, weave, weight_gsm, width_inches, content, raw_color_name
+                brand, collection, color_code, color_name, manufacturer_url,
+                image_url, hex, lab_l, lab_a, lab_b,
+                material, weave, weight_gsm, width_inches, content
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(store_id, store_product_id) DO UPDATE SET
-                name=excluded.name,
+            ON CONFLICT(brand, collection, color_code) DO UPDATE SET
+                color_name=excluded.color_name,
+                manufacturer_url=excluded.manufacturer_url,
                 image_url=excluded.image_url,
                 hex=excluded.hex,
                 lab_l=excluded.lab_l, lab_a=excluded.lab_a, lab_b=excluded.lab_b,
@@ -51,14 +41,14 @@ def save_fabric(store_id: int, record: FabricRecord, result: color.ColorResult |
                 weave=excluded.weave,
                 weight_gsm=excluded.weight_gsm,
                 width_inches=excluded.width_inches,
-                content=excluded.content,
-                raw_color_name=excluded.raw_color_name
+                content=excluded.content
             """,
             (
-                store_id,
-                record.store_product_id,
-                record.name,
-                record.url,
+                record.brand,
+                record.collection,
+                record.color_code,
+                record.color_name,
+                record.manufacturer_url,
                 record.image_url,
                 result.hex if result else None,
                 result.lab[0] if result else None,
@@ -69,7 +59,6 @@ def save_fabric(store_id: int, record: FabricRecord, result: color.ColorResult |
                 record.weight_gsm,
                 record.width_inches,
                 record.content,
-                record.raw_color_name,
             ),
         )
 
@@ -77,7 +66,6 @@ def save_fabric(store_id: int, record: FabricRecord, result: color.ColorResult |
 def run(slug: str, limit: int | None = None) -> None:
     db.init()
     scraper = get_scraper(slug)
-    store_id = upsert_store(scraper)
     print(f"Scraping {scraper.name} ({scraper.base_url})")
 
     saved = 0
@@ -91,21 +79,21 @@ def run(slug: str, limit: int | None = None) -> None:
                     img_bytes = scraper.fetch_image(record.image_url)
                     result = color.extract_dominant_color(img_bytes)
                 except Exception as exc:
-                    print(f"  color extraction failed for {record.url}: {exc}")
+                    print(f"  color extraction failed for {record.manufacturer_url}: {exc}")
 
-            save_fabric(store_id, record, result)
+            save_fabric(record, result)
             saved += 1
             hex_str = result.hex if result else "no-color"
             print(f"  [{saved}] {record.name} -> {hex_str}")
         except Exception as exc:
-            print(f"  save error for {record.url}: {exc}")
+            print(f"  save error for {record.manufacturer_url}: {exc}")
 
     print(f"Done. Saved/updated {saved} fabrics.")
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python -m scraper.run <store_slug> [limit]")
+        print("Usage: python -m scraper.run <manufacturer_slug> [limit]")
         sys.exit(1)
     slug = sys.argv[1]
     limit = int(sys.argv[2]) if len(sys.argv) > 2 else None

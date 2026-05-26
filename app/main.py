@@ -14,7 +14,7 @@ from PIL import Image, ImageDraw
 
 from scraper.color import extract_with_debug, rgb_to_lab
 from scraper.db import connect
-from scraper.stores.fabricwholesaledirect_store import FabricWholesaleDirectScraper
+from scraper.manufacturers.fabricwholesaledirect import FabricWholesaleDirectScraper
 
 app = Flask(__name__)
 
@@ -51,9 +51,8 @@ def index():
         params.append(weave)
 
     sql = f"""
-        SELECT f.*, s.name AS store_name
-        FROM fabrics f
-        JOIN stores s ON s.id = f.store_id
+        SELECT *
+        FROM fabrics
         WHERE {' AND '.join(where)}
         LIMIT 500
     """
