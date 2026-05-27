@@ -149,24 +149,66 @@ code {
 .picks h2 { font-size: 1rem; margin: 0 0 0.75rem; }
 
 .picker-page {
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  /* Empty third column mirrors the picks column so the canvas (in the
+     middle 1fr column) centers visually within main. */
+  grid-template-columns: 220px 1fr 220px;
   gap: 1.5rem;
+  align-items: start;
 }
 .picker-page .picks {
-  flex: 0 0 220px;
   max-height: calc(100vh - 6rem);
   overflow-y: auto;
 }
 .picker-main {
-  flex: 1;
-  min-width: 0;
+  min-width: 0;  /* let the grid cell shrink so the canvas can size correctly */
 }
 /* Compact one-column layout for picks in the side panel. */
 #picks-grid { grid-template-columns: 1fr; gap: 0.5rem; }
-#picks .swatch { aspect-ratio: 3 / 1; }
-#picks .meta { padding: 0.4rem 0.6rem; }
-#picks .name { font-size: 0.8rem; }
+#picks .swatch { aspect-ratio: 16 / 9; }
+.hex-bar {
+  background: white;
+  color: var(--fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+.pick {
+  /* Override .card's flex-column display: in a flex column the swatch's
+     aspect-ratio collapses to 0 height because the flex item's main-axis
+     size is computed before the cross-axis (width) is stretched. */
+  display: block;
+  position: relative;
+  /* Drop .card's border so the color reaches the rounded edge of the tile. */
+  border: 0;
+}
+.swatch-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+.pick-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pick-remove:hover { background: white; color: var(--fg); }
 
 .saved-picks {
   display: flex;

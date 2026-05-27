@@ -144,17 +144,16 @@
   function renderPicks(picks) {
     picksGrid.innerHTML = '';
     for (const hex of picks) {
-      const a = document.createElement('a');
-      a.className = 'card pick';
-      a.href = '/?color=' + encodeURIComponent(hex);
-      a.dataset.hex = hex;
-      a.innerHTML =
+      const card = document.createElement('div');
+      card.className = 'card pick';
+      card.dataset.hex = hex;
+      card.innerHTML =
+        '<a class="swatch-link" href="/?color=' + encodeURIComponent(hex) + '">' +
         '<div class="swatch" style="background:' + hex + '"></div>' +
-        '<div class="meta">' +
-        '  <div class="name">Find matches</div>' +
-        '  <div class="hex">' + hex + '</div>' +
-        '</div>';
-      picksGrid.appendChild(a);
+        '<div class="hex-bar">' + hex + '</div>' +
+        '</a>' +
+        '<button type="button" class="pick-remove" aria-label="Remove pick">&times;</button>';
+      picksGrid.appendChild(card);
     }
     // The picks column stays in the layout regardless, so the canvas position
     // doesn't shift when the first pick appears.
@@ -169,6 +168,20 @@
     savePicks(picks);
     renderPicks(picks);
   }
+
+  function removePick(hex) {
+    const picks = loadPicks().filter(h => h !== hex);
+    savePicks(picks);
+    renderPicks(picks);
+  }
+
+  // Event delegation: one listener handles every pick's remove button.
+  picksGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.pick-remove');
+    if (!btn) return;
+    const hex = btn.closest('.pick').dataset.hex;
+    removePick(hex);
+  });
 
   canvas.addEventListener('click', (e) => {
     const rect = canvas.getBoundingClientRect();
@@ -230,7 +243,7 @@
     const sx = (cursorX - panX) / displayScale;
     const sy = (cursorY - panY) / displayScale;
     const factor = e.deltaY < 0 ? 1.2 : 1 / 1.2;
-    const newZoom = Math.max(0.2, Math.min(20, zoom * factor));
+    const newZoom = Math.max(0.5, Math.min(50, zoom * factor));
     if (newZoom === zoom) return;
     zoom = newZoom;
     displayScale = baseScale * zoom;
