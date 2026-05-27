@@ -2,6 +2,10 @@
 {% block content %}
 <form method="get" class="filters">
   <label>
+    Search
+    <input type="search" name="q" value="{{ current_query }}" placeholder="name, manufacturer, code…">
+  </label>
+  <label>
     Color
     <input type="color" name="color" value="{{ current_color }}">
   </label>

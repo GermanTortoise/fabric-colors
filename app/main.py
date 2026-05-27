@@ -36,6 +36,7 @@ def index():
     material = request.args.get("material", "").strip()
     weave = request.args.get("weave", "").strip()
     target = request.args.get("color", "").strip()
+    query = request.args.get("q", "").strip()
     try:
         tolerance = float(request.args.get("tolerance", DEFAULT_TOLERANCE))
     except ValueError:
@@ -49,6 +50,18 @@ def index():
     if weave:
         where.append("weave = ?")
         params.append(weave)
+    if query:
+        # Each whitespace-separated token must match at least one field, so
+        # "rayon challis kelly" finds a kelly-green rayon challis even though
+        # those words live in different columns.
+        for token in query.lower().split():
+            like = f"%{token}%"
+            where.append(
+                "(LOWER(color_name) LIKE ? OR LOWER(brand) LIKE ?"
+                " OR LOWER(collection) LIKE ? OR LOWER(color_code) LIKE ?"
+                " OR LOWER(content) LIKE ?)"
+            )
+            params.extend([like] * 5)
 
     sql = f"""
         SELECT *
@@ -82,8 +95,9 @@ def index():
                     + (r["lab_a"] - ta) ** 2
                     + (r["lab_b"] - tb) ** 2
                 )
-            rows = [r for r in rows if r.get("delta_e") is not None and r["delta_e"] <= tolerance]
-            rows.sort(key=lambda r: r["delta_e"])
+            if not query:
+                rows = [r for r in rows if r.get("delta_e") is not None and r["delta_e"] <= tolerance]
+            rows.sort(key=lambda r: (r["delta_e"] is None, r["delta_e"]))
         except ValueError:
             pass
 
@@ -96,6 +110,7 @@ def index():
         current_weave=weave,
         current_color=target or "#888888",
         current_tolerance=tolerance,
+        current_query=query,
     )
 
 
