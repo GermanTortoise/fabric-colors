@@ -99,6 +99,11 @@ def index():
     )
 
 
+@app.route("/picker")
+def picker():
+    return render_template("picker.html")
+
+
 def _png_data_uri(img: Image.Image) -> str:
     buf = io.BytesIO()
     img.save(buf, format="PNG")

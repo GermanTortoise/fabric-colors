@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% block title %}Pick colors from image &middot; Fabric Colors{% endblock %}
+{% block content %}
+<div class="picker-page">
+  <aside id="picks" class="picks">
+    <h2>Picked colors</h2>
+    <div id="picks-grid" class="grid"></div>
+  </aside>
+  <div class="picker-main">
+    <p class="picker-intro">
+      Upload an image, then click to sample colors and scroll to zoom in/out. Picks
+      are saved across pages &mdash; click one to find matching fabrics.
+    </p>
+    <div class="picker-controls">
+      <label class="file-input">
+        <input type="file" id="file" accept="image/*">
+        <span>Choose image</span>
+      </label>
+      <button type="button" id="clear" disabled>Clear picks</button>
+    </div>
+    <div id="canvas-wrap" class="canvas-wrap" hidden>
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const fileInput = document.getElementById('file');
+  const clearBtn = document.getElementById('clear');
+  const canvas = document.getElementById('canvas');
+  const canvasWrap = document.getElementById('canvas-wrap');
+  const picksSection = document.getElementById('picks');
+  const picksGrid = document.getElementById('picks-grid');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  const STORAGE_KEY = 'fabric-colors:picks';
+  const IMAGE_KEY = 'fabric-colors:image';
+  const MAX_PICKS = 24;
+  const MAX_SAVE_DIM = 1600;  // cap saved image so it fits in localStorage
+
+  let displayScale = 1;  // CSS px per source px
+  let baseScale = 1;     // fit-to-wrap scale at zoom=1
+  let zoom = 1;
+  let panX = 0, panY = 0;  // canvas top-left offset (CSS px) within the wrap
+  const PAN_MARGIN = 100;   // px of image that must stay visible
+
+  function toHex(n) { return n.toString(16).padStart(2, '0'); }
+  function rgbToHex(r, g, b) { return '#' + toHex(r) + toHex(g) + toHex(b); }
+
+  function loadPicks() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+    catch (_) { return []; }
+  }
+  function savePicks(picks) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(picks));
+  }
+
+  function applyView() {
+    canvas.style.width = (canvas.width * displayScale) + 'px';
+    canvas.style.height = (canvas.height * displayScale) + 'px';
+    canvas.style.transform = 'translate(' + panX + 'px,' + panY + 'px)';
+  }
+
+  function clampPan() {
+    // Allow the canvas to slide past the frame edges as long as PAN_MARGIN
+    // pixels of it remain inside. Works the same whether the canvas is
+    // larger or smaller than the viewport.
+    const w = canvas.width * displayScale;
+    const h = canvas.height * displayScale;
+    const wrapW = canvasWrap.clientWidth;
+    const wrapH = canvasWrap.clientHeight;
+    panX = Math.min(wrapW - PAN_MARGIN, Math.max(PAN_MARGIN - w, panX));
+    panY = Math.min(wrapH - PAN_MARGIN, Math.max(PAN_MARGIN - h, panY));
+  }
+
+  function showOnCanvas(img) {
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    ctx.drawImage(img, 0, 0);
+    canvasWrap.hidden = false;
+    // Fit fully inside the fixed viewport at zoom=1; never enlarge past 1:1.
+    const fitW = canvasWrap.clientWidth / img.naturalWidth;
+    const fitH = canvasWrap.clientHeight / img.naturalHeight;
+    baseScale = Math.min(1, fitW, fitH);
+    zoom = 1;
+    displayScale = baseScale * zoom;
+    // Center the image in the viewport.
+    panX = (canvasWrap.clientWidth - img.naturalWidth * displayScale) / 2;
+    panY = (canvasWrap.clientHeight - img.naturalHeight * displayScale) / 2;
+    applyView();
+  }
+
+  function persistImage() {
+    // Downscale into an offscreen canvas and save as JPEG so the data URL
+    // stays under the localStorage quota for typical photos.
+    const w = canvas.width, h = canvas.height;
+    const scale = Math.min(1, MAX_SAVE_DIM / Math.max(w, h));
+    const sw = Math.round(w * scale), sh = Math.round(h * scale);
+    const tmp = document.createElement('canvas');
+    tmp.width = sw; tmp.height = sh;
+    tmp.getContext('2d').drawImage(canvas, 0, 0, sw, sh);
+    try {
+      localStorage.setItem(IMAGE_KEY, tmp.toDataURL('image/jpeg', 0.85));
+    } catch (_) {
+      // Quota exceeded or storage disabled — picker still works this session.
+    }
+  }
+
+  function loadImage(file) {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      showOnCanvas(img);
+      URL.revokeObjectURL(url);
+      persistImage();
+    };
+    img.src = url;
+  }
+
+  function restoreSavedImage() {
+    const dataUrl = localStorage.getItem(IMAGE_KEY);
+    if (!dataUrl) return;
+    const img = new Image();
+    img.onload = () => showOnCanvas(img);
+    img.src = dataUrl;
+  }
+
+  function sampleAt(sx, sy) {
+    // Average a small neighborhood for stability against single-pixel noise.
+    const radius = 2;
+    const x0 = Math.max(0, sx - radius);
+    const y0 = Math.max(0, sy - radius);
+    const x1 = Math.min(canvas.width, sx + radius + 1);
+    const y1 = Math.min(canvas.height, sy + radius + 1);
+    const data = ctx.getImageData(x0, y0, x1 - x0, y1 - y0).data;
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      r += data[i]; g += data[i + 1]; b += data[i + 2]; n++;
+    }
+    return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+  }
+
+  function renderPicks(picks) {
+    picksGrid.innerHTML = '';
+    for (const hex of picks) {
+      const a = document.createElement('a');
+      a.className = 'card pick';
+      a.href = '/?color=' + encodeURIComponent(hex);
+      a.dataset.hex = hex;
+      a.innerHTML =
+        '<div class="swatch" style="background:' + hex + '"></div>' +
+        '<div class="meta">' +
+        '  <div class="name">Find matches</div>' +
+        '  <div class="hex">' + hex + '</div>' +
+        '</div>';
+      picksGrid.appendChild(a);
+    }
+    // The picks column stays in the layout regardless, so the canvas position
+    // doesn't shift when the first pick appears.
+    clearBtn.disabled = picks.length === 0;
+  }
+
+  function addPick(hex) {
+    // Latest first, deduped, capped.
+    let picks = loadPicks().filter(h => h !== hex);
+    picks.unshift(hex);
+    if (picks.length > MAX_PICKS) picks = picks.slice(0, MAX_PICKS);
+    savePicks(picks);
+    renderPicks(picks);
+  }
+
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const sx = Math.floor((e.clientX - rect.left) / displayScale);
+    const sy = Math.floor((e.clientY - rect.top) / displayScale);
+    const [r, g, b] = sampleAt(sx, sy);
+    addPick(rgbToHex(r, g, b));
+  });
+
+  // // Suppress middle-click autoscroll across the picker page. Capture phase so
+  // // we run before any element default kicks in, and bound to window so it
+  // // applies even outside the canvas (clicking the wrap margin, page body, etc).
+  // window.addEventListener('mousedown', (e) => {
+  //   if (e.button === 1) e.preventDefault();
+  // }, true);
+
+  // Middle/right mouse drag pans the viewport. Left click stays a color sample.
+  let dragging = false;
+  let dragStartX = 0, dragStartY = 0;
+  let panStartX = 0, panStartY = 0;
+
+  canvasWrap.addEventListener('mousedown', (e) => {
+    if (e.button !== 1 && e.button !== 2) return;
+    e.preventDefault();  // also suppresses middle-click autoscroll on Windows
+    dragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    panStartX = panX;
+    panStartY = panY;
+    canvasWrap.style.cursor = 'grabbing';
+  });
+
+  // Listen on window so a drag that wanders off the wrap still works.
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    panX = panStartX + (e.clientX - dragStartX);
+    panY = panStartY + (e.clientY - dragStartY);
+    clampPan();
+    applyView();
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    canvasWrap.style.cursor = '';
+  });
+
+  // Right-click pans rather than opens the browser context menu.
+  canvasWrap.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  canvasWrap.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (dragging) return;  // don't zoom mid-pan; the anchor math would fight the drag
+    const wrapRect = canvasWrap.getBoundingClientRect();
+    const cursorX = e.clientX - wrapRect.left;
+    const cursorY = e.clientY - wrapRect.top;
+    // Source pixel currently under the cursor (works even when the cursor
+    // is over the empty area beside a small image — it's just a virtual point).
+    const sx = (cursorX - panX) / displayScale;
+    const sy = (cursorY - panY) / displayScale;
+    const factor = e.deltaY < 0 ? 1.2 : 1 / 1.2;
+    const newZoom = Math.max(0.2, Math.min(20, zoom * factor));
+    if (newZoom === zoom) return;
+    zoom = newZoom;
+    displayScale = baseScale * zoom;
+    // Pan so the same source pixel stays under the cursor.
+    panX = cursorX - sx * displayScale;
+    panY = cursorY - sy * displayScale;
+    applyView();
+  }, { passive: false });
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) loadImage(file);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    localStorage.removeItem(STORAGE_KEY);
+    renderPicks([]);
+  });
+
+  // Hydrate from previous visits.
+  renderPicks(loadPicks());
+  restoreSavedImage();
+})();
+</script>
+{% endblock %}

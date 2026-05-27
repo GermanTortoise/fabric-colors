@@ -90,3 +90,127 @@ code {
   line-height: 1.6;
 }
 .empty p { margin: 0.25rem 0; }
+
+.pick-link {
+  align-self: center;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.85rem;
+  padding: 0.45rem 0.2rem;
+}
+.pick-link:hover { color: var(--fg); }
+
+.picker-intro { color: var(--muted); margin: 0 0 1rem; }
+.picker-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.file-input {
+  display: inline-block;
+  cursor: pointer;
+}
+.file-input input { display: none; }
+.file-input span {
+  display: inline-block;
+  padding: 0.45rem 0.9rem;
+  background: var(--fg);
+  color: white;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+#clear {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border);
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+}
+#clear:disabled { opacity: 0.4; cursor: not-allowed; }
+.canvas-wrap {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  /* Fixed viewport that clips the canvas. Panning is done via CSS transform
+     on the canvas, so we don't want native scrollbars here. */
+  overflow: hidden;
+  width: 100%;
+  height: 75vh;
+  position: relative;
+}
+#canvas {
+  display: block;
+  cursor: crosshair;
+  transform-origin: 0 0;
+}
+.picks h2 { font-size: 1rem; margin: 0 0 0.75rem; }
+
+.picker-page {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+.picker-page .picks {
+  flex: 0 0 220px;
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
+}
+.picker-main {
+  flex: 1;
+  min-width: 0;
+}
+/* Compact one-column layout for picks in the side panel. */
+#picks-grid { grid-template-columns: 1fr; gap: 0.5rem; }
+#picks .swatch { aspect-ratio: 3 / 1; }
+#picks .meta { padding: 0.4rem 0.6rem; }
+#picks .name { font-size: 0.8rem; }
+
+.saved-picks {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 0.5rem 0.75rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+/* Restore [hidden] semantics — our display:flex above would otherwise win. */
+.saved-picks[hidden] { display: none; }
+.saved-picks-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.saved-picks-strip {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.saved-pick {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  text-decoration: none;
+}
+.saved-pick.active {
+  outline: 2px solid var(--fg);
+  outline-offset: 1px;
+}
+#clear-picks {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 0.3rem 0.7rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+#clear-picks:hover { color: var(--fg); }
