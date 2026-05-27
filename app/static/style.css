@@ -65,20 +65,61 @@ code {
   background: white;
   border: 1px solid var(--border);
   border-radius: 6px;
-  overflow: hidden;
-  text-decoration: none;
-  color: inherit;
   display: flex;
   flex-direction: column;
-  transition: transform 0.1s, box-shadow 0.1s;
 }
-.card:hover {
+.swatch {
+  aspect-ratio: 1;
+  display: block;
+  cursor: pointer;
+  border-radius: 5px 5px 0 0;
+  position: relative;
+  transition: transform 0.1s, box-shadow 0.1s, border-radius 0.1s;
+}
+a.swatch:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 5px;
+  z-index: 2;
 }
-.swatch { aspect-ratio: 1; }
-.meta { padding: 0.6rem 0.75rem; font-size: 0.85rem; }
-.name { font-weight: 500; margin-bottom: 0.2rem; line-height: 1.3; }
+.meta {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.85rem;
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  background: white;
+  border-radius: 0 0 5px 5px;
+  position: relative;
+  /* Fill remaining vertical space so the whole white bottom area is part of
+     the link — short cards in a tall row would otherwise have un-hoverable
+     padding below the text. */
+  flex: 1;
+  transition: transform 0.1s, box-shadow 0.1s, border-radius 0.1s;
+}
+a.meta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 5px;
+  z-index: 2;
+}
+.name {
+  font-weight: 500;
+  margin-bottom: 0.2rem;
+  line-height: 1.3;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 2px;
+}
+.meta:hover .name { text-decoration-color: var(--fg); }
+.ext {
+  display: inline-block;
+  margin-left: 0.25rem;
+  color: var(--muted);
+  font-size: 0.85em;
+  text-decoration: none;
+  vertical-align: baseline;
+}
 .store, .hex { color: var(--muted); font-size: 0.78rem; }
 .hex { font-family: ui-monospace, monospace; margin-top: 0.1rem; }
 .empty {
@@ -183,6 +224,14 @@ code {
   position: relative;
   /* Drop .card's border so the color reaches the rounded edge of the tile. */
   border: 0;
+  /* Clip inner swatch/hex-bar to the pick's rounded corners; .card no longer
+     does this globally because the index swatch/meta now have their own radii. */
+  overflow: hidden;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.pick:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
 }
 .swatch-link {
   display: block;

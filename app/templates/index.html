@@ -79,10 +79,12 @@
 {% if fabrics %}
 <div class="grid">
   {% for f in fabrics %}
-  <a class="card" href="{{ f.manufacturer_url }}" target="_blank" rel="noopener noreferrer">
-    <div class="swatch" style="background:{{ f.hex }}"></div>
-    <div class="meta">
-      <div class="name">{{ f.color_name }}</div>
+  <div class="card">
+    <a class="swatch" style="background:{{ f.hex }}"
+       href="{{ url_for('index', color=f.hex) }}"
+       title="Find similar colors"></a>
+    <a class="meta" href="{{ f.manufacturer_url }}" target="_blank" rel="noopener noreferrer">
+      <div class="name">{{ f.color_name }}<span class="ext">&#x2197;</span></div>
       <div class="store">{{ f.brand }} &middot; {{ f.collection }}</div>
       <div class="hex">
         {{ f.hex }}
@@ -90,8 +92,8 @@
           &middot; &Delta;E {{ '%.1f' % f.delta_e }}
         {% endif %}
       </div>
-    </div>
-  </a>
+    </a>
+  </div>
   {% endfor %}
 </div>
 {% else %}
