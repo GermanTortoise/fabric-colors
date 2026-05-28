@@ -9,9 +9,29 @@
 <body>
   <header>
     <h1><a href="/">Fabric Colors</a></h1>
+    <nav class="tabs">
+      <a class="tab {% if request.endpoint == 'index' %}active{% endif %}"
+         href="{{ url_for('index') }}">Search</a>
+      <a class="tab {% if request.endpoint == 'picker' %}active{% endif %}"
+         href="{{ url_for('picker') }}">Pick from image</a>
+    </nav>
   </header>
   <main>
     {% block content %}{% endblock %}
   </main>
+  <script>
+    // Publish the header's actual rendered height so fixed-position elements
+    // (like the history sidebar) can sit exactly below it, regardless of
+    // font metrics.
+    (function () {
+      const h = document.querySelector('header');
+      if (!h) return;
+      const set = () => document.documentElement.style.setProperty(
+        '--header-h', h.offsetHeight + 'px'
+      );
+      set();
+      window.addEventListener('resize', set);
+    })();
+  </script>
 </body>
 </html>

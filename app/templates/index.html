@@ -1,45 +1,86 @@
 {% extends "base.html" %}
 {% block content %}
-<form method="get" class="filters">
-  <label>
-    Search
-    <input type="search" name="q" value="{{ current_query }}" placeholder="name, manufacturer, code…">
-  </label>
-  <label>
-    Color
-    <input type="color" name="color" value="{{ current_color }}">
-  </label>
-  <label>
-    Max &Delta;E
-    <input type="number" name="tolerance" value="{{ '%g' % current_tolerance }}" min="0" max="200" step="5">
-  </label>
-  <label>
-    Material
-    <select name="material">
-      <option value="">Any</option>
-      {% for m in materials %}
-      <option value="{{ m }}" {% if m == current_material %}selected{% endif %}>{{ m }}</option>
-      {% endfor %}
-    </select>
-  </label>
-  <label>
-    Weave
-    <select name="weave">
-      <option value="">Any</option>
-      {% for w in weaves %}
-      <option value="{{ w }}" {% if w == current_weave %}selected{% endif %}>{{ w }}</option>
-      {% endfor %}
-    </select>
-  </label>
-  <button type="submit">Match</button>
-  <a class="pick-link" href="{{ url_for('picker') }}">Pick from image &rarr;</a>
-</form>
+<div class="index-page">
+  <aside class="history">
+    <h2>Recent</h2>
+    <div class="history-list" id="history-list"></div>
+    <p class="history-empty" id="history-empty">No recent searches yet. Click a swatch to find similar colors.</p>
+    <button type="button" id="clear-history" hidden>Clear</button>
+  </aside>
+  <div class="index-main">
+    <form method="get" class="filters">
+      <label>
+        Search
+        <input type="search" name="q" value="{{ current_query }}" placeholder="name, manufacturer, code…">
+      </label>
+      <label>
+        Color
+        <input type="color" name="color" value="{{ current_color }}">
+      </label>
+      <label>
+        Max &Delta;E
+        <input type="number" name="tolerance" value="{{ '%g' % current_tolerance }}" min="0" max="200" step="5">
+      </label>
+      <label>
+        Material
+        <select name="material">
+          <option value="">Any</option>
+          {% for m in materials %}
+          <option value="{{ m }}" {% if m == current_material %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Weave
+        <select name="weave">
+          <option value="">Any</option>
+          {% for w in weaves %}
+          <option value="{{ w }}" {% if w == current_weave %}selected{% endif %}>{{ w }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit">Match</button>
+    </form>
 
-<div id="saved-picks" class="saved-picks" hidden>
-  <span class="saved-picks-label">Saved picks</span>
-  <div class="saved-picks-strip"></div>
-  <button type="button" id="clear-picks">Clear</button>
+    <div id="saved-picks" class="saved-picks" hidden>
+      <span class="saved-picks-label">Saved picks</span>
+      <div class="saved-picks-strip"></div>
+      <button type="button" id="clear-picks">Clear</button>
+    </div>
+
+    {% if fabrics %}
+    <div class="grid">
+      {% for f in fabrics %}
+      <div class="card">
+        <a class="swatch" style="background:{{ f.hex }}"
+           href="{{ url_for('index', color=f.hex) }}"
+           data-hex="{{ f.hex }}"
+           data-name="{{ f.color_name }}"
+           data-brand="{{ f.brand }}"
+           title="Find similar colors"></a>
+        <a class="meta" href="{{ f.manufacturer_url }}" target="_blank" rel="noopener noreferrer">
+          <div class="name">{{ f.color_name }}<span class="ext">&#x2197;</span></div>
+          <div class="store">{{ f.brand }} &middot; {{ f.collection }}</div>
+          <div class="hex">
+            {{ f.hex }}
+            {% if f.delta_e is not none and f.delta_e is defined %}
+              &middot; &Delta;E {{ '%.1f' % f.delta_e }}
+            {% endif %}
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">
+      <p>No fabrics in the database yet.</p>
+      <p>Add a manufacturer scraper in <code>scraper/manufacturers/</code>,
+         then run <code>python -m scraper.run &lt;manufacturer_slug&gt; 20</code>.</p>
+    </div>
+    {% endif %}
+  </div>
 </div>
+
 <script>
 (function () {
   const STORAGE_KEY = 'fabric-colors:picks';
@@ -76,31 +117,68 @@
 })();
 </script>
 
-{% if fabrics %}
-<div class="grid">
-  {% for f in fabrics %}
-  <div class="card">
-    <a class="swatch" style="background:{{ f.hex }}"
-       href="{{ url_for('index', color=f.hex) }}"
-       title="Find similar colors"></a>
-    <a class="meta" href="{{ f.manufacturer_url }}" target="_blank" rel="noopener noreferrer">
-      <div class="name">{{ f.color_name }}<span class="ext">&#x2197;</span></div>
-      <div class="store">{{ f.brand }} &middot; {{ f.collection }}</div>
-      <div class="hex">
-        {{ f.hex }}
-        {% if f.delta_e is not none and f.delta_e is defined %}
-          &middot; &Delta;E {{ '%.1f' % f.delta_e }}
-        {% endif %}
-      </div>
-    </a>
-  </div>
-  {% endfor %}
-</div>
-{% else %}
-<div class="empty">
-  <p>No fabrics in the database yet.</p>
-  <p>Add a manufacturer scraper in <code>scraper/manufacturers/</code>,
-     then run <code>python -m scraper.run &lt;manufacturer_slug&gt; 20</code>.</p>
-</div>
-{% endif %}
+<script>
+(function () {
+  const HISTORY_KEY = 'fabric-colors:history';
+  const MAX_ENTRIES = 100;
+  const list = document.getElementById('history-list');
+  const empty = document.getElementById('history-empty');
+  const clearBtn = document.getElementById('clear-history');
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+    catch (_) { return []; }
+  }
+  function save(entries) {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+  }
+
+  function render() {
+    const entries = load();
+    list.innerHTML = '';
+    const hasAny = entries.length > 0;
+    empty.hidden = hasAny;
+    clearBtn.hidden = !hasAny;
+    for (const e of entries) {
+      const a = document.createElement('a');
+      a.className = 'history-item';
+      a.href = '/?color=' + encodeURIComponent(e.hex);
+      a.title = e.name + (e.brand ? ' — ' + e.brand : '');
+      const sw = document.createElement('span');
+      sw.className = 'history-swatch';
+      sw.style.background = e.hex;
+      const nm = document.createElement('span');
+      nm.className = 'history-name';
+      nm.textContent = e.name || e.hex;
+      a.append(sw, nm);
+      list.appendChild(a);
+    }
+  }
+
+  function push(entry) {
+    let entries = load().filter(e => e.hex !== entry.hex);
+    entries.unshift(entry);
+    if (entries.length > MAX_ENTRIES) entries = entries.slice(0, MAX_ENTRIES);
+    save(entries);
+  }
+
+  // Capture every "find similar" click in the result grid.
+  document.querySelectorAll('.grid a.swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      push({
+        hex: sw.dataset.hex,
+        name: sw.dataset.name,
+        brand: sw.dataset.brand,
+      });
+    });
+  });
+
+  clearBtn.addEventListener('click', () => {
+    localStorage.removeItem(HISTORY_KEY);
+    render();
+  });
+
+  render();
+})();
+</script>
 {% endblock %}
