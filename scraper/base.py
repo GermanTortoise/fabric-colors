@@ -26,11 +26,17 @@ def image_cache_path(url: str) -> Path:
 
 @dataclass
 class FabricRecord:
-    brand: str
+    # `vendor` + `vendor_url` are the source we link out to (always known).
+    # `manufacturer` + `manufacturer_sku` are the attributed maker + its code,
+    # set only when the source discloses them (null for resellers like SY
+    # Fabrics). See project memory `project_identity_dedup_model`.
+    vendor: str
     collection: str
     color_code: str
     color_name: str
-    manufacturer_url: str
+    vendor_url: str
+    manufacturer: str | None = None
+    manufacturer_sku: str | None = None
     image_url: str | None = None
     material: str | None = None
     weave: str | None = None
@@ -40,12 +46,16 @@ class FabricRecord:
 
     @property
     def name(self) -> str:
-        return f"{self.brand} {self.collection} – {self.color_name}"
+        return f"{self.vendor} {self.collection} – {self.color_name}"
 
 
 class BaseScraper(ABC):
     slug: str = ""
     name: str = ""
+    # vendor = the store/site we link out to. manufacturer = the maker, only when
+    # this source discloses it (None for resellers that hide it).
+    vendor: str = ""
+    manufacturer: str | None = None
     base_url: str = ""
     crawl_delay: float = 10.0
     image_delay: float = 0.2

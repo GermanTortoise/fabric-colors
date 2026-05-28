@@ -27,13 +27,16 @@ def save_fabric(record: FabricRecord, result: color.ColorResult | None) -> None:
         conn.execute(
             """
             INSERT INTO fabrics (
-                brand, collection, color_code, color_name, manufacturer_url,
+                vendor, collection, color_code, color_name, vendor_url,
+                manufacturer, manufacturer_sku,
                 image_url, hex, lab_l, lab_a, lab_b,
                 material, weave, weight_gsm, width_inches, content
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(brand, collection, color_code) DO UPDATE SET
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(vendor, collection, color_code) DO UPDATE SET
                 color_name=excluded.color_name,
-                manufacturer_url=excluded.manufacturer_url,
+                vendor_url=excluded.vendor_url,
+                manufacturer=excluded.manufacturer,
+                manufacturer_sku=excluded.manufacturer_sku,
                 image_url=excluded.image_url,
                 hex=excluded.hex,
                 lab_l=excluded.lab_l, lab_a=excluded.lab_a, lab_b=excluded.lab_b,
@@ -44,11 +47,13 @@ def save_fabric(record: FabricRecord, result: color.ColorResult | None) -> None:
                 content=excluded.content
             """,
             (
-                record.brand,
+                record.vendor,
                 record.collection,
                 record.color_code,
                 record.color_name,
-                record.manufacturer_url,
+                record.vendor_url,
+                record.manufacturer,
+                record.manufacturer_sku,
                 record.image_url,
                 result.hex if result else None,
                 result.lab[0] if result else None,
@@ -79,14 +84,14 @@ def run(slug: str, limit: int | None = None) -> None:
                     img_bytes = scraper.fetch_image(record.image_url)
                     result = color.extract_dominant_color(img_bytes)
                 except Exception as exc:
-                    print(f"  color extraction failed for {record.manufacturer_url}: {exc}")
+                    print(f"  color extraction failed for {record.vendor_url}: {exc}")
 
             save_fabric(record, result)
             saved += 1
             hex_str = result.hex if result else "no-color"
             print(f"  [{saved}] {record.name} -> {hex_str}")
         except Exception as exc:
-            print(f"  save error for {record.manufacturer_url}: {exc}")
+            print(f"  save error for {record.vendor_url}: {exc}")
 
     print(f"Done. Saved/updated {saved} fabrics.")
 

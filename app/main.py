@@ -57,11 +57,12 @@ def index():
         for token in query.lower().split():
             like = f"%{token}%"
             where.append(
-                "(LOWER(color_name) LIKE ? OR LOWER(brand) LIKE ?"
+                "(LOWER(color_name) LIKE ? OR LOWER(vendor) LIKE ?"
+                " OR LOWER(manufacturer) LIKE ?"
                 " OR LOWER(collection) LIKE ? OR LOWER(color_code) LIKE ?"
                 " OR LOWER(content) LIKE ?)"
             )
-            params.extend([like] * 5)
+            params.extend([like] * 6)
 
     sql = f"""
         SELECT *

@@ -20,7 +20,8 @@ from scraper.base import BaseScraper, FabricRecord
 class RobertKaufmanScraper(BaseScraper):
     slug = "robertkaufman"
     name = "Robert Kaufman"
-    brand = "Robert Kaufman"
+    vendor = "Robert Kaufman"
+    manufacturer = "Robert Kaufman"
     base_url = "https://www.robertkaufman.com"
     crawl_delay = 2.0
     image_delay = 0.2
@@ -55,11 +56,13 @@ class RobertKaufmanScraper(BaseScraper):
                 continue
             seen.add(code)
             record = FabricRecord(
-                brand=self.brand,
+                vendor=self.vendor,
                 collection=collection,
                 color_code=code,
                 color_name=color.title(),
-                manufacturer_url=f"{self.base_url}{landing_path}{code}/",
+                vendor_url=f"{self.base_url}{landing_path}{code}/",
+                manufacturer=self.manufacturer,
+                manufacturer_sku=code,
                 image_url=f"{self.base_url}/assets/fabric/detail/{code}.jpg",
                 material=contents or None,
                 content=contents or None,

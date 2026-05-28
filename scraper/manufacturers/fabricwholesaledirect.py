@@ -1,10 +1,10 @@
 """Fabric Wholesale Direct (fabricwholesaledirect.com).
 
-FWD is its own house brand — the store IS the manufacturer, so each product
-page doubles as the canonical manufacturer URL under the project's
-manufacturer-canonical model. brand = "Fabric Wholesale Direct" for all
-records; collection = product title (e.g. "Stretch Velvet"); color_code =
-synthetic "{product_id}-{color_slug}" since FWD doesn't publish stable codes.
+FWD is its own house brand — the store IS the manufacturer, so vendor and
+manufacturer are both "Fabric Wholesale Direct" and the product page is the
+link-out target. collection = product title (e.g. "Stretch Velvet"); color_code
+= synthetic "{product_id}-{color_slug}" since FWD doesn't publish stable codes
+(so manufacturer_sku is left null).
 
 Shopify storefront. robots.txt explicitly allows public catalog crawling and
 points agents at /agents.md and a UCP/MCP endpoint. We use /products.json
@@ -50,7 +50,10 @@ def _slugify(s: str) -> str:
 class FabricWholesaleDirectScraper(BaseScraper):
     slug = "fabricwholesaledirect"
     name = "Fabric Wholesale Direct"
-    brand = "Fabric Wholesale Direct"
+    vendor = "Fabric Wholesale Direct"
+    # House brand — the store is the maker. No published per-color SKU (codes are
+    # synthetic), so manufacturer_sku stays null.
+    manufacturer = "Fabric Wholesale Direct"
     base_url = "https://fabricwholesaledirect.com"
     crawl_delay = 2.5
 
@@ -103,11 +106,12 @@ class FabricWholesaleDirectScraper(BaseScraper):
             seen.add(color)
 
             yield FabricRecord(
-                brand=self.brand,
+                vendor=self.vendor,
                 collection=title,
                 color_code=f"{p['id']}-{_slugify(color)}",
                 color_name=color,
-                manufacturer_url=f"{product_url}?variant={v['id']}",
+                vendor_url=f"{product_url}?variant={v['id']}",
+                manufacturer=self.manufacturer,
                 image_url=image_url,
                 material=material,
                 content=material,

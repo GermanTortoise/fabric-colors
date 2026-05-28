@@ -64,11 +64,11 @@
            href="{{ url_for('index', color=f.hex) }}"
            data-hex="{{ f.hex }}"
            data-name="{{ f.color_name }}"
-           data-brand="{{ f.brand }}"
+           data-brand="{{ f.vendor }}"
            title="Find similar colors"></a>
-        <a class="meta" href="{{ f.manufacturer_url }}" target="_blank" rel="noopener noreferrer">
+        <a class="meta" href="{{ f.vendor_url }}" target="_blank" rel="noopener noreferrer">
           <div class="name">{{ f.color_name }}<span class="ext">&#x2197;</span></div>
-          <div class="store">{{ f.brand }} &middot; {{ f.collection }}</div>
+          <div class="store">{{ f.vendor }} &middot; {{ f.collection }}</div>
           <div class="hex">
             {{ f.hex }}
             {% if f.delta_e is not none and f.delta_e is defined %}
