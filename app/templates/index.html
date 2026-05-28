@@ -7,6 +7,14 @@
     <p class="history-empty" id="history-empty">No recent searches yet. Click a swatch to find similar colors.</p>
     <button type="button" id="clear-history" hidden>Clear</button>
   </aside>
+  <aside class="picks-sidebar">
+    <h2>Saved colors</h2>
+    <div class="picks-list" id="picks-list"></div>
+    <p class="picks-empty" id="picks-empty">
+      No saved colors yet. <a href="{{ url_for('picker') }}">Pick from an image</a> to add some.
+    </p>
+    <button type="button" id="clear-picks" hidden>Clear all</button>
+  </aside>
   <div class="index-main">
     <form method="get" class="filters">
       <label>
@@ -41,12 +49,6 @@
       </label>
       <button type="submit">Match</button>
     </form>
-
-    <div id="saved-picks" class="saved-picks" hidden>
-      <span class="saved-picks-label">Saved picks</span>
-      <div class="saved-picks-strip"></div>
-      <button type="button" id="clear-picks">Clear</button>
-    </div>
 
     {% if fabrics %}
     <div class="grid">
@@ -83,37 +85,22 @@
 
 <script>
 (function () {
-  const STORAGE_KEY = 'fabric-colors:picks';
-  const wrap = document.getElementById('saved-picks');
-  const strip = wrap.querySelector('.saved-picks-strip');
+  const list = document.getElementById('picks-list');
+  const empty = document.getElementById('picks-empty');
   const clearBtn = document.getElementById('clear-picks');
-  let picks = [];
-  try { picks = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
-  catch (_) {}
-  if (!picks.length) return;
 
-  const currentColor = {{ current_color|tojson }};
-  function urlFor(hex) {
-    const u = new URL(window.location.href);
-    u.searchParams.set('color', hex);
-    return u.pathname + '?' + u.searchParams.toString();
+  function render() {
+    const picks = Picks.load();
+    list.innerHTML = '';
+    const hasAny = picks.length > 0;
+    empty.hidden = hasAny;
+    clearBtn.hidden = !hasAny;
+    for (const p of picks) list.appendChild(Picks.createCard(p));
   }
-  for (const hex of picks) {
-    const a = document.createElement('a');
-    a.className = 'saved-pick';
-    a.href = urlFor(hex);
-    a.style.background = hex;
-    a.title = hex;
-    if (hex.toLowerCase() === currentColor.toLowerCase()) {
-      a.classList.add('active');
-    }
-    strip.appendChild(a);
-  }
-  wrap.hidden = false;
-  clearBtn.addEventListener('click', () => {
-    localStorage.removeItem(STORAGE_KEY);
-    wrap.hidden = true;
-  });
+
+  clearBtn.addEventListener('click', () => Picks.clear());
+  window.addEventListener('picks-changed', render);
+  render();
 })();
 </script>
 
@@ -177,6 +164,9 @@
     localStorage.removeItem(HISTORY_KEY);
     render();
   });
+
+  // Re-render when picks.js updates history (e.g. a pick rename).
+  window.addEventListener('history-changed', render);
 
   render();
 })();

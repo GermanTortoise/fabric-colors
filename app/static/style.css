@@ -227,39 +227,45 @@ a.meta:hover {
 .picker-main {
   min-width: 0;  /* let the grid cell shrink so the canvas can size correctly */
 }
-/* Compact one-column layout for picks in the side panel. */
-#picks-grid { grid-template-columns: 1fr; gap: 0.5rem; }
-#picks .swatch { aspect-ratio: 16 / 9; }
-.hex-bar {
-  background: white;
-  color: var(--fg);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.75rem;
-  padding: 0.3rem 0.5rem;
-  text-align: center;
-  border-top: 1px solid var(--border);
-}
+/* One-column stack of picks in the side panel; each card matches the
+   search-result card style (square swatch + label) so picks and results
+   are visually consistent. */
+#picks-grid { grid-template-columns: 1fr; gap: 0.75rem; }
 .pick {
-  /* Override .card's flex-column display: in a flex column the swatch's
-     aspect-ratio collapses to 0 height because the flex item's main-axis
-     size is computed before the cross-axis (width) is stretched. */
-  display: block;
+  /* Picks reuse the same layout as search-result cards (.card): square swatch
+     on top, label area below. The swatch lifts on hover; the label is just
+     static info with an editable name. */
   position: relative;
-  /* Drop .card's border so the color reaches the rounded edge of the tile. */
-  border: 0;
-  /* Clip inner swatch/hex-bar to the pick's rounded corners; .card no longer
-     does this globally because the index swatch/meta now have their own radii. */
-  overflow: hidden;
-  transition: transform 0.1s, box-shadow 0.1s;
 }
-.pick:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
+.pick-meta {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.85rem;
+  background: white;
+  border-radius: 0 0 5px 5px;
+  flex: 1;
 }
-.swatch-link {
+.pick-name {
   display: block;
-  color: inherit;
-  text-decoration: none;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 1px 3px;
+  margin: 0 0 0.2rem -3px;
+  font: inherit;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--fg);
+  border-radius: 3px;
+}
+.pick-name:hover { background: var(--bg); }
+.pick-name:focus {
+  outline: none;
+  background: var(--bg);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.pick-name::placeholder {
+  color: var(--muted);
+  font-style: italic;
 }
 .pick-remove {
   position: absolute;
@@ -279,55 +285,10 @@ a.meta:hover {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Sit above the swatch even when it lifts to z-index: 2 on hover. */
+  z-index: 3;
 }
 .pick-remove:hover { background: white; color: var(--fg); }
-
-.saved-picks {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1.25rem;
-  padding: 0.5rem 0.75rem;
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-}
-/* Restore [hidden] semantics — our display:flex above would otherwise win. */
-.saved-picks[hidden] { display: none; }
-.saved-picks-label {
-  font-size: 0.78rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.saved-picks-strip {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-  flex: 1;
-}
-.saved-pick {
-  width: 1.6rem;
-  height: 1.6rem;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  cursor: pointer;
-  text-decoration: none;
-}
-.saved-pick.active {
-  outline: 2px solid var(--fg);
-  outline-offset: 1px;
-}
-#clear-picks {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--muted);
-  padding: 0.3rem 0.7rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.8rem;
-}
-#clear-picks:hover { color: var(--fg); }
 
 /* The history sidebar is positioned out of flow against the viewport edge,
    starting below the header so the header (with its tabs) keeps the same
@@ -346,6 +307,49 @@ a.meta:hover {
   overflow-y: auto;
   z-index: 5;
 }
+.picks-sidebar {
+  position: fixed;
+  right: 0;
+  top: var(--header-h, 3.9rem);
+  bottom: 0;
+  width: 220px;
+  background: white;
+  border-left: 1px solid var(--border);
+  padding: 1rem 0.75rem;
+  overflow-y: auto;
+  z-index: 5;
+}
+.picks-sidebar h2 {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.picks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.picks-empty {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.picks-empty a { color: var(--fg); }
+#clear-picks {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+#clear-picks:hover { color: var(--fg); }
 body:has(.history) main {
   /* Reserve space for the fixed sidebar, then let .index-main center inside
      the remaining area (instead of being flush against the sidebar). */

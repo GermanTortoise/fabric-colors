@@ -34,7 +34,6 @@
   const picksGrid = document.getElementById('picks-grid');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-  const STORAGE_KEY = 'fabric-colors:picks';
   const IMAGE_KEY = 'fabric-colors:image';
   const MAX_PICKS = 24;
   const MAX_SAVE_DIM = 1600;  // cap saved image so it fits in localStorage
@@ -47,14 +46,6 @@
 
   function toHex(n) { return n.toString(16).padStart(2, '0'); }
   function rgbToHex(r, g, b) { return '#' + toHex(r) + toHex(g) + toHex(b); }
-
-  function loadPicks() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
-    catch (_) { return []; }
-  }
-  function savePicks(picks) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(picks));
-  }
 
   function applyView() {
     canvas.style.width = (canvas.width * displayScale) + 'px';
@@ -141,54 +132,19 @@
     return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
   }
 
-  function renderPicks(picks) {
+  function renderPicks() {
+    const picks = Picks.load();
     picksGrid.innerHTML = '';
-    for (const hex of picks) {
-      const card = document.createElement('div');
-      card.className = 'card pick';
-      card.dataset.hex = hex;
-      card.innerHTML =
-        '<a class="swatch-link" href="/?color=' + encodeURIComponent(hex) + '">' +
-        '<div class="swatch" style="background:' + hex + '"></div>' +
-        '<div class="hex-bar">' + hex + '</div>' +
-        '</a>' +
-        '<button type="button" class="pick-remove" aria-label="Remove pick">&times;</button>';
-      picksGrid.appendChild(card);
-    }
-    // The picks column stays in the layout regardless, so the canvas position
-    // doesn't shift when the first pick appears.
+    for (const p of picks) picksGrid.appendChild(Picks.createCard(p));
     clearBtn.disabled = picks.length === 0;
   }
-
-  function addPick(hex) {
-    // Latest first, deduped, capped.
-    let picks = loadPicks().filter(h => h !== hex);
-    picks.unshift(hex);
-    if (picks.length > MAX_PICKS) picks = picks.slice(0, MAX_PICKS);
-    savePicks(picks);
-    renderPicks(picks);
-  }
-
-  function removePick(hex) {
-    const picks = loadPicks().filter(h => h !== hex);
-    savePicks(picks);
-    renderPicks(picks);
-  }
-
-  // Event delegation: one listener handles every pick's remove button.
-  picksGrid.addEventListener('click', (e) => {
-    const btn = e.target.closest('.pick-remove');
-    if (!btn) return;
-    const hex = btn.closest('.pick').dataset.hex;
-    removePick(hex);
-  });
 
   canvas.addEventListener('click', (e) => {
     const rect = canvas.getBoundingClientRect();
     const sx = Math.floor((e.clientX - rect.left) / displayScale);
     const sy = Math.floor((e.clientY - rect.top) / displayScale);
     const [r, g, b] = sampleAt(sx, sy);
-    addPick(rgbToHex(r, g, b));
+    Picks.add(rgbToHex(r, g, b), MAX_PICKS);
   });
 
   // // Suppress middle-click autoscroll across the picker page. Capture phase so
@@ -258,13 +214,13 @@
     if (file) loadImage(file);
   });
 
-  clearBtn.addEventListener('click', () => {
-    localStorage.removeItem(STORAGE_KEY);
-    renderPicks([]);
-  });
+  clearBtn.addEventListener('click', () => Picks.clear());
+
+  // Re-render any time picks change (clicks here or in the index sidebar).
+  window.addEventListener('picks-changed', renderPicks);
 
   // Hydrate from previous visits.
-  renderPicks(loadPicks());
+  renderPicks();
   restoreSavedImage();
 })();
 </script>
