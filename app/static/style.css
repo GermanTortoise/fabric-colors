@@ -73,6 +73,55 @@ code {
   color: var(--fg);
 }
 .filters input[type=color] { padding: 0.2rem; height: 2.3rem; width: 3rem; }
+.active-match { gap: 0.25rem; }
+.active-match-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* Same vertical padding as the other filter inputs so heights line up. */
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: white;
+  min-width: 11rem;
+  cursor: pointer;
+  position: relative;
+}
+.active-match-swatch {
+  display: inline-block;
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.hidden-color {
+  /* Native color inputs have a browser-imposed minimum size that ignores
+     CSS height — we hide it and use .active-match-swatch as the visible
+     control. The surrounding <label> still routes clicks to this input. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.active-match-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  min-width: 0;
+  flex: 1;
+}
+.active-name {
+  font-size: 0.85rem;
+  color: var(--fg);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .filters button {
   background: var(--fg);
   color: white;

@@ -21,9 +21,15 @@
         Search
         <input type="search" name="q" value="{{ current_query }}" placeholder="name, manufacturer, code…">
       </label>
-      <label>
-        Color
-        <input type="color" name="color" value="{{ current_color }}">
+      <label class="active-match">
+        Matching
+        <span class="active-match-card">
+          <span class="active-match-swatch" style="background:{{ current_color }}"></span>
+          <input type="color" name="color" value="{{ current_color }}" class="hidden-color">
+          <span class="active-match-info">
+            <span class="active-name">{{ current_color }}</span>
+          </span>
+        </span>
       </label>
       <label>
         Max &Delta;E
@@ -82,6 +88,59 @@
     {% endif %}
   </div>
 </div>
+
+<script>
+(function () {
+  // Fill the "Matching" chip in the filter bar with a friendly name pulled
+  // from Picks first, then the search history. Falls back to the hex.
+  const HISTORY_KEY = 'fabric-colors:history';
+  const nameEl = document.querySelector('.active-name');
+  const swatchEl = document.querySelector('.active-match-swatch');
+  const colorInput = document.querySelector('.active-match-card input[type=color]');
+  if (!nameEl) return;
+
+  function findName(hex) {
+    const lower = hex.toLowerCase();
+    const p = Picks.load().find(x => x.hex.toLowerCase() === lower);
+    if (p && p.name) return p.name;
+    try {
+      const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      const h = history.find(x => x.hex.toLowerCase() === lower);
+      if (h && h.name) return h.name;
+    } catch (_) {}
+    return null;
+  }
+  function refresh(hex) {
+    nameEl.textContent = findName(hex) || hex;
+    if (swatchEl) swatchEl.style.background = hex;
+  }
+
+  refresh({{ current_color|tojson }});
+  if (colorInput) {
+    colorInput.addEventListener('input', () => refresh(colorInput.value));
+  }
+
+  // If the current page is matching against a color (URL has ?color=...),
+  // make sure it's recorded in history — covers custom colors picked via the
+  // chip's color picker or typed directly in the URL. Skipped when the top
+  // entry already matches (e.g. swatch clicks already pushed before reload).
+  const matchingHex = new URL(window.location.href).searchParams.get('color');
+  if (matchingHex) {
+    let topHex = null;
+    try {
+      const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      if (history.length) topHex = history[0].hex.toLowerCase();
+    } catch (_) {}
+    if (topHex !== matchingHex.toLowerCase()) {
+      Picks.pushHistory({
+        hex: matchingHex,
+        name: findName(matchingHex) || '',
+        brand: '',
+      });
+    }
+  }
+})();
+</script>
 
 <script>
 (function () {
