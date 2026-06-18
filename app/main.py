@@ -29,6 +29,7 @@ def hex_to_lab(hex_str: str) -> tuple[float, float, float]:
 
 
 DEFAULT_TOLERANCE = 65.0
+MAX_RESULTS = 500  # cap on rows rendered; applied AFTER color ranking
 
 
 @app.route("/")
@@ -64,11 +65,16 @@ def index():
             )
             params.extend([like] * 6)
 
+    # With a target color we must rank ALL matching rows by Delta E before
+    # truncating — otherwise an arbitrary SQL LIMIT could drop a close match
+    # that simply sits late in the table. Without a target there's no ranking,
+    # so cap in SQL to keep the browse view bounded.
+    limit_clause = "" if target else f"LIMIT {MAX_RESULTS}"
     sql = f"""
         SELECT *
         FROM fabrics
         WHERE {' AND '.join(where)}
-        LIMIT 500
+        {limit_clause}
     """
 
     with connect() as conn:
@@ -101,6 +107,9 @@ def index():
             rows.sort(key=lambda r: (r["delta_e"] is None, r["delta_e"]))
         except ValueError:
             pass
+        # Truncate only after ranking, so the nearest matches survive — and so
+        # an unranked set (invalid hex) is still bounded.
+        rows = rows[:MAX_RESULTS]
 
     return render_template(
         "index.html",
