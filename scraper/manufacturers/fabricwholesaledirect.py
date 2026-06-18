@@ -142,12 +142,17 @@ class FabricWholesaleDirectScraper(BaseScraper):
                     return float(m.group(1))
         return None
 
-    # Two filename styles coexist on FWD's CDN:
-    #   newer: "..._Red_a2_<uuid>.jpg"  (underscores around the a<digit> code)
-    #   older: "...-OffWhitea2.jpg"     (color smushed against the code, no uuid)
-    # Match both: optional leading underscore, then a<digit>, then optional _<uuid>.
-    _IMG_TAIL_RE = re.compile(
-        r"(_?)a\d+(_[a-f0-9-]+)?\.(?:jpe?g|png|webp)$",
+    # The "a<digit>" view code (a1 = full drape shot, a2 = swatch/swirl,
+    # a3 = detail) identifies which shot a filename is. It sits in the MIDDLE of
+    # the name, followed by an optional "_<NNN>x" size token and "_<uuid>" hash:
+    #   "..._Hunter_Green_a2_3000x_<uuid>.jpg"  (underscores around the code)
+    #   "...RayonChallis-Silvera1_3000x_<uuid>.jpg"  (code smushed against color)
+    #   "...-OffWhitea2.jpg"  (older: no size/uuid trailing the code)
+    # Capture the code's digit; the optional size/hash trail is what an
+    # end-anchored "(_<uuid>)?\." pattern used to miss (the "x" in "3000x" and
+    # the size token between code and hash both broke the old regex).
+    _IMG_CODE_RE = re.compile(
+        r"a(\d+)(?:_\d+x)?(?:_[a-f0-9-]+)?\.(?:jpe?g|png|webp)$",
         re.IGNORECASE,
     )
 
@@ -155,19 +160,21 @@ class FabricWholesaleDirectScraper(BaseScraper):
     def _drape_image(p: dict, featured_url: str | None, code: str = "a1") -> str | None:
         if not featured_url:
             return None
-        path = featured_url.split("?", 1)[0]
-        m = FabricWholesaleDirectScraper._IMG_TAIL_RE.search(path)
-        if not m:
+        fname = featured_url.split("?", 1)[0].rsplit("/", 1)[-1]
+        fm = FabricWholesaleDirectScraper._IMG_CODE_RE.search(fname)
+        if not fm:
             return None
-        sep = m.group(1)
-        prefix = path[: m.start()]
-        target_re = re.compile(
-            re.escape(prefix + sep + code) + r"(_[a-f0-9-]+)?\.",
-            re.IGNORECASE,
-        )
+        # Stem = the per-variant color/style prefix every shot of this variant
+        # shares (everything before its "a<digit>" code). Find the sibling image
+        # with the same stem but the requested code. Lowercased because FWD mixes
+        # the "..._a1_" and attached "...Silvera1" spellings across colors.
+        stem = fname[: fm.start()].lower()
+        want = code.lower().lstrip("a")
         for img in p.get("images") or []:
             src = (img.get("src") or "").split("?", 1)[0]
-            if target_re.match(src):
+            name = src.rsplit("/", 1)[-1]
+            m = FabricWholesaleDirectScraper._IMG_CODE_RE.search(name)
+            if m and m.group(1) == want and name[: m.start()].lower() == stem:
                 return img.get("src")
         return None
 
