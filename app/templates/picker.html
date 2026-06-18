@@ -8,8 +8,9 @@
   </aside>
   <div class="picker-main">
     <p class="picker-intro">
-      Upload an image, then click to sample colors and scroll to zoom in/out. Picks
-      are saved across pages &mdash; click one to find matching fabrics.
+      Upload or paste (Ctrl/&#8984;+V) an image, then click to sample colors and scroll
+      to zoom in/out. Picks are saved across pages &mdash; click one to find matching
+      fabrics, or click a pick's hex code to copy it.
     </p>
     <div class="picker-controls">
       <label class="file-input">
@@ -212,6 +213,25 @@
   fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) loadImage(file);
+  });
+
+  // Paste an image straight from the clipboard (Ctrl/Cmd+V) — copy a screenshot
+  // or image anywhere and drop it in without saving to disk first. Ignore pastes
+  // aimed at a text field (e.g. a pick's name input) so typing still works.
+  window.addEventListener('paste', (e) => {
+    const target = e.target;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+    const items = (e.clipboardData && e.clipboardData.items) || [];
+    for (const item of items) {
+      if (item.type && item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          loadImage(file);
+        }
+        return;
+      }
+    }
   });
 
   clearBtn.addEventListener('click', () => Picks.clear());

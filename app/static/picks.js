@@ -99,9 +99,25 @@
     nameInput.addEventListener('keydown', e => {
       if (e.key === 'Enter') { e.preventDefault(); nameInput.blur(); }
     });
-    const hexLine = document.createElement('div');
+    const hexLine = document.createElement('button');
+    hexLine.type = 'button';
     hexLine.className = 'hex';
     hexLine.textContent = pick.hex;
+    hexLine.title = 'Copy hex code';
+    // Click the hex to copy it to the clipboard. Briefly flash "Copied" as
+    // feedback, then restore the code. Falls back silently if the Clipboard
+    // API is unavailable (e.g. non-secure context).
+    hexLine.addEventListener('click', () => {
+      const restore = () => { hexLine.textContent = pick.hex; };
+      const flash = () => {
+        hexLine.textContent = 'Copied!';
+        hexLine.classList.add('copied');
+        setTimeout(() => { restore(); hexLine.classList.remove('copied'); }, 900);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(pick.hex).then(flash).catch(() => {});
+      }
+    });
     meta.append(nameInput, hexLine);
 
     const removeBtn = document.createElement('button');

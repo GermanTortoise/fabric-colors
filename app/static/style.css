@@ -194,6 +194,18 @@ a.meta:hover {
 }
 .store, .hex { color: var(--muted); font-size: 0.78rem; }
 .hex { font-family: ui-monospace, monospace; margin-top: 0.1rem; }
+/* The hex line is a <button> so it can copy to the clipboard, but it should
+   read as inline text. Strip the native button chrome and only hint on hover. */
+button.hex {
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+button.hex:hover { text-decoration: underline; }
+button.hex.copied { color: var(--accent, #2e7d32); text-decoration: none; }
 .empty {
   background: white;
   border: 1px dashed var(--border);
