@@ -21,16 +21,25 @@
         Search
         <input type="search" name="q" value="{{ current_query }}" placeholder="name, manufacturer, code…">
       </label>
-      <label class="active-match">
+      <!-- Not a <label>: a label would route every click inside it to the color
+           picker. Only the swatch opens the picker (via JS); the hex field and the
+           rest of the card are left alone. -->
+      <div class="active-match">
         Matching
         <span class="active-match-card">
-          <span class="active-match-swatch" style="background:{{ current_color }}"></span>
-          <input type="color" name="color" value="{{ current_color }}" class="hidden-color">
+          <span class="active-match-swatch" style="background:{{ current_color }}"
+                role="button" tabindex="0" title="Pick a color" aria-label="Pick a color"></span>
+          <input type="color" value="{{ current_color }}" class="hidden-color"
+                 tabindex="-1" aria-label="Pick a color">
           <span class="active-match-info">
-            <span class="active-name">{{ current_color }}</span>
+            <input type="text" name="color" class="active-name" value="{{ current_color }}"
+                   autocomplete="off" autocapitalize="off" spellcheck="false"
+                   pattern="#?[0-9a-fA-F]{6}" aria-label="Hex color code"
+                   title="Enter a 6-digit hex color, e.g. #3a7bd5">
+            <span class="active-name-sub" hidden></span>
           </span>
         </span>
-      </label>
+      </div>
       <label>
         Max &Delta;E
         <input type="number" name="tolerance" value="{{ '%g' % current_tolerance }}" min="0" max="200" step="5">
@@ -94,10 +103,11 @@
   // Fill the "Matching" chip in the filter bar with a friendly name pulled
   // from Picks first, then the search history. Falls back to the hex.
   const HISTORY_KEY = 'fabric-colors:history';
-  const nameEl = document.querySelector('.active-name');
+  const hexInput = document.querySelector('input.active-name');
+  const subEl = document.querySelector('.active-name-sub');
   const swatchEl = document.querySelector('.active-match-swatch');
   const colorInput = document.querySelector('.active-match-card input[type=color]');
-  if (!nameEl) return;
+  if (!hexInput) return;
 
   function findName(hex) {
     const lower = hex.toLowerCase();
@@ -110,15 +120,70 @@
     } catch (_) {}
     return null;
   }
+  // Accept "#rrggbb" or bare "rrggbb"; return the normalized "#rrggbb" or null.
+  function normalizeHex(s) {
+    const m = String(s).trim().match(/^#?([0-9a-fA-F]{6})$/);
+    return m ? '#' + m[1].toLowerCase() : null;
+  }
+  // Show the friendly name (from Picks/history) on the secondary line, but only
+  // when it adds info beyond the hex itself.
+  function showName(hex) {
+    if (!subEl) return;
+    const name = findName(hex);
+    if (name && name.toLowerCase() !== hex.toLowerCase()) {
+      subEl.textContent = name;
+      subEl.hidden = false;
+    } else {
+      subEl.hidden = true;
+    }
+  }
+  // Authoritative sync (page load + a color-picker pick): update every control.
   function refresh(hex) {
-    nameEl.textContent = findName(hex) || hex;
-    if (swatchEl) swatchEl.style.background = hex;
+    const norm = normalizeHex(hex) || hex;
+    hexInput.value = norm;
+    if (swatchEl) swatchEl.style.background = norm;
+    if (colorInput) { const n = normalizeHex(norm); if (n) colorInput.value = n; }
+    showName(norm);
   }
 
   refresh({{ current_color|tojson }});
   if (colorInput) {
     colorInput.addEventListener('input', () => refresh(colorInput.value));
   }
+  // Only the swatch opens the native picker now (the wrapper is a <div>, so it
+  // no longer routes stray clicks there). showPicker() where available, else a
+  // programmatic click on the hidden color input.
+  if (swatchEl && colorInput) {
+    const openPicker = () => {
+      if (colorInput.showPicker) colorInput.showPicker();
+      else colorInput.click();
+    };
+    swatchEl.addEventListener('click', openPicker);
+    swatchEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); }
+    });
+  }
+  // Typing a hex updates the swatch + picker live, without rewriting the field
+  // under the cursor (so partial/invalid input is left alone until valid).
+  hexInput.addEventListener('input', () => {
+    const norm = normalizeHex(hexInput.value);
+    if (!norm) return;
+    if (swatchEl) swatchEl.style.background = norm;
+    if (colorInput) colorInput.value = norm;
+    showName(norm);
+  });
+  // Select the whole hex code when the field is first clicked/focused, so the
+  // user can type a replacement immediately. The mouseup guard stops the click
+  // from collapsing that selection; a second click (already focused) still
+  // positions the caret normally.
+  let selectAllOnFocus = false;
+  hexInput.addEventListener('mousedown', () => {
+    if (document.activeElement !== hexInput) selectAllOnFocus = true;
+  });
+  hexInput.addEventListener('focus', () => hexInput.select());
+  hexInput.addEventListener('mouseup', (e) => {
+    if (selectAllOnFocus) { e.preventDefault(); selectAllOnFocus = false; }
+  });
 
   // If the current page is matching against a color (URL has ?color=...),
   // make sure it's recorded in history — covers custom colors picked via the

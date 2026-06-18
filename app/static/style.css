@@ -73,7 +73,15 @@ code {
   color: var(--fg);
 }
 .filters input[type=color] { padding: 0.2rem; height: 2.3rem; width: 3rem; }
-.active-match { gap: 0.25rem; }
+/* The wrapper is a <div> (not a .filters label), so reproduce the same
+   caption-over-control layout the other filter fields get. */
+.active-match {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
 .active-match-card {
   display: inline-flex;
   align-items: center;
@@ -84,7 +92,6 @@ code {
   border-radius: 4px;
   background: white;
   min-width: 11rem;
-  cursor: pointer;
   position: relative;
 }
 .active-match-swatch {
@@ -94,6 +101,11 @@ code {
   border: 1px solid var(--border);
   border-radius: 3px;
   flex-shrink: 0;
+  cursor: pointer;  /* only the swatch opens the picker */
+}
+.active-match-swatch:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 1px;
 }
 .hidden-color {
   /* Native color inputs have a browser-imposed minimum size that ignores
@@ -118,6 +130,30 @@ code {
   font-size: 0.85rem;
   color: var(--fg);
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The hex field is a real text <input> but should read as the inline label it
+   replaced — strip the native chrome, use a text caret, monospace the code. */
+input.active-name {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  /* Match the other filter inputs (Search, Max ΔE), which use `font: inherit`
+     — system sans at the filter font-size, normal weight (not monospace). */
+  font: inherit;
+  color: var(--fg);
+  cursor: text;
+}
+input.active-name:focus { outline: none; }
+input.active-name:invalid { color: #c0392b; }
+.active-name-sub {
+  font-size: 0.72rem;
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
